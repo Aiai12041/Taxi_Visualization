@@ -19,6 +19,13 @@ export default {
   getData() {
     return apiClient.get('/data');
   },
+
+  // 获取特定日期/小时的OD数据
+  getOdData(date, hour) {
+    return apiClient.get('/od_data', {
+      params: { date, hour }
+    });
+  },
   
   // 可以添加更多特定的API调用方法
 }

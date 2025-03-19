@@ -15,6 +15,10 @@ const esStatus = ref('未连接');
 const apiData = ref([]);
 const loading = ref(false);
 const error = ref(null);
+// 添加日期和时间选择器状态
+const selectedDate = ref('');
+const selectedHour = ref('');
+const odData = ref([]);
 
 // 更新时间
 onMounted(() => {
@@ -50,6 +54,43 @@ const fetchApiData = async () => {
 const refreshData = () => {
   fetchApiData();
 };
+
+// 获取OD数据的函数
+const fetchOdData = async () => {
+  if (!selectedDate.value && !selectedHour.value) {
+    console.log('未选择日期或小时，跳过查询');
+    return;
+  }
+  
+  loading.value = true;
+  error.value = null;
+  console.log(`请求OD数据: 日期=${selectedDate.value}, 小时=${selectedHour.value}`);
+  
+  try {
+    const response = await ApiService.getOdData(selectedDate.value, selectedHour.value);
+    console.log(`获取到${response.data.length}条OD数据`);
+    
+    if (response.data.length > 0) {
+      // 检查第一条数据
+      console.log('第一条数据样本:', JSON.stringify(response.data[0]._source));
+    }
+    
+    odData.value = response.data;
+  } catch (err) {
+    console.error('获取OD数据失败:', err);
+    error.value = '无法获取OD数据: ' + (err.message || JSON.stringify(err));
+  } finally {
+    loading.value = false;
+  }
+};
+// 处理日期或时间变化
+const handleDateTimeChange = () => {
+  console.log('选择的日期:', selectedDate.value);
+  console.log('选择的小时:', selectedHour.value);
+  console.log('小时值类型:', typeof selectedHour.value);
+  fetchOdData();
+};
+
 </script>
 
 <template>
@@ -85,7 +126,7 @@ const refreshData = () => {
               <div v-else>
                 <div class="status-row">
                   <span class="status-label">ES状态:</span>
-                  <span class="status-value" :class="{'status-ok': esStatus === 'OK'}">{{ esStatus }}</span>
+                  <span class="status-value" :class="{ 'status-ok': esStatus === 'OK' }">{{ esStatus }}</span>
                 </div>
                 <div v-if="apiData.length > 0" class="data-preview">
                   <div v-for="(item, index) in apiData.slice(0, 5)" :key="index" class="data-item">
@@ -106,8 +147,34 @@ const refreshData = () => {
       
       <!-- 中间地图 -->
       <div class="center-panel">
-        <BeijingMap />
+      <div class="map-filter">
+        <h3>OD数据筛选</h3>
+        <div class="filter-controls">
+          <el-date-picker
+            v-model="selectedDate"
+            type="date"
+            placeholder="选择日期"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            @change="handleDateTimeChange"
+          ></el-date-picker>
+          <el-select 
+            v-model="selectedHour" 
+            placeholder="选择小时"
+            @change="handleDateTimeChange"
+            class="hour-select"
+          >
+            <el-option 
+              v-for="i in 24" 
+              :key="i-1" 
+              :label="`${i-1}时`" 
+              :value="(i-1).toString().padStart(2, '0')" 
+            ></el-option>
+          </el-select>
+        </div>
       </div>
+      <BeijingMap :od-data="odData" />
+    </div>
       
       <!-- 右侧面板 -->
       <div class="right-panel">
@@ -130,6 +197,28 @@ const refreshData = () => {
 </template>
 
 <style scoped>
+
+.map-filter {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+  background: rgba(0, 23, 51, 0.8);
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 180, 255, 0.5);
+  color: #fff;
+}
+
+.filter-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.hour-select {
+  width: 120px;
+}
 
 /* API结果框样式 */
 .api-result-box {
